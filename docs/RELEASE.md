@@ -49,8 +49,12 @@ Idle
 - 把 Test 环境标识发布到 Prod
 - 在 Prod 独立重新实现功能
 
-## 当前已知 Prod 保护项
-目前 Prod 首页仍存在测试环境文案泄漏，这是已知待修问题，而不是应继续保留的正式行为。后续发布治理应确保正式站使用正式环境文案。
+## Prod 正式环境保护项
+Stage C 已于 2026-09-09 完成并通过正式站人工验收，正式环境文案边界现为长期保护项：
+- Prod 不得出现 `测试库 / TEST`、`Chance（测试库）` 等 Test-only branding。
+- Test 可以继续保留测试环境标识；发布到 Prod 时必须保留 Prod 正式环境差异。
+- 后续 Test → Prod 发布若涉及同一 HTML 文件，只允许引入已批准业务变化，不得用 Test 文件整份覆盖 Prod。
+- 该保护项基线发布 commit：`3d2b03901bbe0bf182e8920b3dc83b53e1ca316d`。
 
 ## 内容发布边界
 `myBlog-admin` 对 `content.js` 与 `assets/uploads/` 的内容发布/提升，不等于前台代码 Release。内容发布应遵循 Admin 自己的治理与人工确认规则。
