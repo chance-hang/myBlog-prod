@@ -9,6 +9,19 @@
 - 只有 Test 已通过 ChatGPT Review、人工验收，并且 Test `docs/RELEASE.md` 明确为 `Release Ready` 时，才执行代码发布。
 - 发布必须基于明确的 Source Test commit，不允许模糊地“同步最新 Test”。
 
+## Codex 启动任务前必须先同步 GitHub
+GitHub 是任务、治理规则和发布状态的权威来源；本地 `AGENTS.md`、`docs/ACTIVE_TASK.md`、Plan 或 Release 文件可能已经过期。
+
+因此每次用户要求“读取 AGENTS.md 和 docs/ACTIVE_TASK.md，执行当前任务”时，Codex 必须先：
+1. 确认当前 Workspace / Git 仓库正确。
+2. 执行 `git status`；若工作区不干净，不得直接 pull，先停止并报告。
+3. 确认当前位于预期基线分支；常规任务启动基线为 `main`。
+4. 执行 `git pull --ff-only origin main`，确保拿到 GitHub 最新治理文件与任务指针。
+5. pull 成功后，**重新读取** `AGENTS.md`、`docs/ACTIVE_TASK.md`，以及 ACTIVE_TASK 指定的 Plan / `docs/RELEASE.md`。
+6. 只执行重新读取后的最新任务；不得依据 pull 前缓存/旧版本的 ACTIVE_TASK 判断当前状态。
+
+如果 `git pull --ff-only` 失败、存在本地未提交修改、当前分支不适合更新 main，或文件状态有歧义：停止并用中文报告，不自行 merge/rebase/reset/覆盖。
+
 ## 本地 Git 约定
 Prod Workspace 使用独立 Git 仓库：
 - `origin` → `myBlog-prod`
@@ -19,7 +32,7 @@ Prod Workspace 使用独立 Git 仓库：
 2. `docs/ACTIVE_TASK.md`
 3. `docs/RELEASE.md`
 
-然后检查工作区干净、同步 Prod main，并执行 `git fetch test`。
+同步最新 GitHub 状态后，再检查工作区干净并执行 `git fetch test`（发布任务需要时）。
 
 ## 禁止操作
 除非发布任务明确授权：
