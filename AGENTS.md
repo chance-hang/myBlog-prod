@@ -22,6 +22,14 @@ GitHub 是任务、治理规则和发布状态的权威来源；本地 `AGENTS.m
 
 如果 `git pull --ff-only` 失败、存在本地未提交修改、当前分支不适合更新 main，或文件状态有歧义：停止并用中文报告，不自行 merge/rebase/reset/覆盖。
 
+## 活跃任务分支期间的 main 变更规则
+- 一旦 Codex 已从 main 创建并 push 当前任务分支，原则上不要再直接推进 main 的治理/任务文档，避免任务分支与 main 在 Review 前无谓分叉。
+- 如果确有必要在任务进行中更新 main，必须把这件事视为显式的“主线前进事件”。
+- 在 ChatGPT 最终 Review 前，Codex 必须先 `git fetch origin`，确认最新 `origin/main`。
+- 如果任务分支落后 main，应先把最新 `origin/main` 合入当前任务分支；默认优先普通 merge，不改写已 push 历史，不 force push。
+- 同步 main 后必须重新验证：无冲突、无额外业务文件变化、任务范围未扩大，然后 push 当前任务分支，再进行最终 Review。
+- 未完成上述同步前，不把任务分支视为可合并状态。
+
 ## 本地 Git 约定
 Prod Workspace 使用独立 Git 仓库：
 - `origin` → `myBlog-prod`
