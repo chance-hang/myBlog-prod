@@ -1,38 +1,24 @@
 # ACTIVE TASK — myBlog Prod
 
 ## Status
-Waiting for Human Acceptance
+Idle
 
 ## 当前状态
-Stage C 正式环境文案边界修复已完成、Review 已通过并合并到 `main`。
+Stage C：Prod 正式环境文案边界修复已完成。
 
-当前 Prod main 业务发布 commit：
-`3d2b03901bbe0bf182e8920b3dc83b53e1ca316d`
+- Prod 业务发布 commit：`3d2b03901bbe0bf182e8920b3dc83b53e1ca316d`
+- ChatGPT Review：通过
+- 正式站人工验收：2026-09-09 用户确认通过
+- Release History：已记录
+- Prod 正式环境边界：已写入 `docs/RELEASE.md` 作为长期保护项
 
-ChatGPT 已确认：
-- 相对发布前 main，仅 6 个前台 HTML 文件发生最小环境文案变更；
-- `app.js`、`reader.js`、`style.css`、`content.js`、assets、Admin 均未进入本次业务修改；
-- GitHub 默认分支搜索 `测试库` 当前无结果。
+## 当前任务
+无。
 
-## 现在需要用户人工验收
-请在正式博客上检查：
-1. 首页浏览器标题不再含“测试库”。
-2. 首页不再显示“测试库 / TEST”，但 `CHANCE` 保留。
-3. 内容索引、项目、AI、生活、关于页面标题不再含“（测试库）”。
-4. 首页 loader、关于抽屉、内容入口正常。
-5. 内容索引与分类页面可以正常打开。
-6. 文章详情可正常读取。
-
-## Codex 指令
-当前无需 Codex 执行任何任务。
-在用户明确反馈正式站人工验收通过前：
-- 不创建新分支
+在新的明确任务到来前：
+- 不创建业务分支
 - 不修改业务代码
-- 不继续 Stage D
-- 不执行新的发布
+- 不执行新的 Test → Prod 发布
+- 不把 Admin 内容发布误当作前台代码 Release
 
-用户验收通过后，由 ChatGPT：
-- 将本任务标记 Completed / Idle；
-- 更新 `docs/RELEASE_HISTORY.md`；
-- 记录 Prod 环境边界为正式保护项；
-- 再进入跨项目治理同步与灾备中心建设。
+后续常规前台开发从 `myBlog-test` 开始；只有 Test Review、人工验收并进入 Release Ready 后，才在本仓库启动受控发布任务。
