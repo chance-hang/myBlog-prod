@@ -1,4 +1,82 @@
-const content = window.blogContent || { articles: [], notes: [], topics: [] };
+const contentKinds = { articles: 'article', notes: 'note', topics: 'topic' };
+const contentFields = {
+  articles: { required: ['id', 'date', 'type', 'category', 'reading', 'title', 'summary', 'body'], optional: ['cover', 'imageRefs'] },
+  notes: { required: ['id', 'date', 'label', 'category', 'text'], optional: ['imageRefs'] },
+  topics: { required: ['id', 'title', 'status', 'date', 'text'], optional: ['category', 'imageRefs'] }
+};
+const isContentRecord = (record, schema, kind, allowLegacy = false) => {
+  if (!record || typeof record !== 'object' || Array.isArray(record)) return false;
+  const required = allowLegacy ? schema.required.filter(field => field !== 'id') : schema.required;
+  const allowed = new Set([...required, ...schema.optional]);
+  if (!Object.keys(record).every(field => allowed.has(field)) || !required.every(field => typeof record[field] === 'string' && record[field])) return false;
+  if (Object.hasOwn(record, 'cover') && (typeof record.cover !== 'string' || !record.cover)) return false;
+  if (Object.hasOwn(record, 'category') && (typeof record.category !== 'string' || !record.category)) return false;
+  if (Object.hasOwn(record, 'imageRefs') && !Array.isArray(record.imageRefs)) return false;
+  return allowLegacy || new RegExp(`^${kind}_[0-7][0-9A-HJKMNP-TV-Z]{25}$`).test(record.id);
+};
+const validateContent = (candidate, allowLegacy = false) => {
+  if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) throw new Error('Invalid content payload');
+  if (!allowLegacy && (candidate.schemaVersion !== 1 || Object.keys(candidate).length !== 4)) throw new Error('Unsupported content schema');
+  const ids = new Set();
+  Object.entries(contentKinds).forEach(([collection, kind]) => {
+    const records = candidate[collection];
+    if (!Array.isArray(records) || !records.length) throw new Error(`Invalid ${collection}`);
+    records.forEach(record => {
+      if (!isContentRecord(record, contentFields[collection], kind, allowLegacy)) throw new Error(`Invalid ${kind} record`);
+      if (!allowLegacy && (ids.has(record.id) || ids.add(record.id) === false)) throw new Error('Duplicate content ID');
+    });
+  });
+  return candidate;
+};
+const legacyStableIds = {
+  articles: ['article_01J00000000000000000000001', 'article_01J00000000000000000000002', 'article_01J00000000000000000000003', 'article_01J00000000000000000000004', 'article_01J00000000000000000000005', 'article_01J00000000000000000000006', 'article_01J00000000000000000000007', 'article_01J00000000000000000000008', 'article_01J00000000000000000000009'],
+  notes: ['note_01J00000000000000000000001', 'note_01J00000000000000000000002', 'note_01J00000000000000000000003', 'note_01J00000000000000000000004', 'note_01J00000000000000000000005', 'note_01J00000000000000000000006', 'note_01J00000000000000000000007', 'note_01J00000000000000000000008', 'note_01J00000000000000000000009', 'note_01J0000000000000000000000A'],
+  topics: ['topic_01J00000000000000000000001', 'topic_01J00000000000000000000002', 'topic_01J00000000000000000000003', 'topic_01J00000000000000000000004']
+};
+const hydrateLegacyContent = candidate => {
+  const hydrated = { ...candidate };
+  Object.entries(contentKinds).forEach(([collection]) => {
+    const ids = legacyStableIds[collection];
+    if (!Array.isArray(ids) || ids.length !== candidate[collection].length) throw new Error(`Missing legacy ID mapping for ${collection}`);
+    hydrated[collection] = candidate[collection].map((entry, index) => ({ ...entry, id: ids[index] }));
+  });
+  return hydrated;
+};
+const resolveBlogContentItem = (candidate, id) => {
+  const legacyMatch = id.match(/^(article|topic|note)-(\d+)$/);
+  const stableMatch = id.match(/^(article|topic|note)_[0-7][0-9A-HJKMNP-TV-Z]{25}$/);
+  const collections = { article: candidate.articles, topic: candidate.topics, note: candidate.notes };
+  return stableMatch
+    ? collections[stableMatch[1]]?.find(entry => entry.id === id)
+    : legacyMatch && collections[legacyMatch[1]]?.[Number(legacyMatch[2])];
+};
+window.resolveBlogContentItem = resolveBlogContentItem;
+const loadLegacyContent = () => new Promise((resolve, reject) => {
+  const script = document.createElement('script');
+  script.src = './content.js?v=cover-1';
+  script.onload = () => {
+    try { resolve(hydrateLegacyContent(validateContent(window.blogContent, true))); } catch (error) { reject(error); }
+  };
+  script.onerror = () => reject(new Error('Legacy content unavailable'));
+  document.head.append(script);
+});
+window.blogContentReady = fetch('./content.json', { cache: 'no-store' })
+  .then(response => {
+    if (!response.ok) throw new Error(`content.json request failed: ${response.status}`);
+    return response.json();
+  })
+  .then(payload => {
+    window.blogContent = validateContent(payload);
+    window.blogContentSource = 'json';
+    return window.blogContent;
+  })
+  .catch(() => loadLegacyContent().then(payload => {
+    window.blogContent = payload;
+    window.blogContentSource = 'legacy';
+    return payload;
+  }));
+
+window.blogContentReady.then(content => {
 const loader = document.querySelector('.site-loader');
 if (loader) {
   let loaderRemovalTimer;
@@ -90,6 +168,8 @@ const markdown = (value = '') => value.split(/\n{2,}/).map(block => {
   if (heading) return `<h3>${inline(heading[1])}</h3>${block.split('\n').slice(1).filter(Boolean).map(line => `<p>${inline(line)}</p>`).join('')}`;
   return block.split('\n').filter(Boolean).map(line => `<p>${inline(line)}</p>`).join('');
 }).join('');
+window.blogEsc = esc;
+window.blogMarkdown = markdown;
 
 document.querySelectorAll('.inner-header nav a').forEach(link => {
   const page = document.body.dataset.page;
@@ -109,7 +189,7 @@ const cardMarkup = (item, index) => {
     ? `<span class="journal-art journal-art-cover"><img class="journal-cover" src="${esc(item.cover)}" alt="">${meta}</span>`
     : `<span class="journal-art journal-art-${esc(item.category)} journal-art-${index % 4}"><i aria-hidden="true"></i>${meta}</span>`;
   return `<article class="journal-card journal-card-${index + 1}${item.cover ? ' has-cover' : ''}">
-  <a href="./post.html?id=${item.kind}-${item.sourceIndex}">
+  <a href="./post.html?id=${item.id || `${item.kind}-${item.sourceIndex}`}">
     ${art}
     <strong>${esc(item.title || item.label)}</strong>
     <span class="journal-excerpt">${esc(item.excerpt)}</span>
@@ -142,6 +222,8 @@ if (journalRoot) {
     renderJournal(button.dataset.journalFilter);
   }));
 }
+
+});
 
 document.querySelectorAll('.entry').forEach(item => item.addEventListener('toggle', () => {
   const mark = item.querySelector('summary b');
